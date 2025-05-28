@@ -22,6 +22,49 @@ import { Role } from 'src/auth/role.decorator';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  // ✅ Profil utilisateur connecté
+  @UseGuards(JwtAuthGuard)
+  @Get('profile')
+  getProfile(@Request() req) {
+    return this.usersService.findOne(req.user.userId);
+  }
+
+  // ✅ Gestion des intérêts
+  @UseGuards(JwtAuthGuard)
+  @Get('interests')
+  getUserInterests(@Request() req) {
+    return this.usersService.getUserInterests(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Role('investor')
+  @Post('interests')
+  addInterests(@Request() req, @Body() interests: { interestIds: string[] }) {
+    return this.usersService.addInterests(req.user.userId, interests.interestIds);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Role('investor')
+  @Delete('interests')
+  removeInterests(@Request() req, @Body() interests: { interestIds: string[] }) {
+    return this.usersService.removeInterests(req.user.userId, interests.interestIds);
+  }
+
+  // ✅ Mise à jour du profil
+  @UseGuards(JwtAuthGuard)
+  @Put('profile')
+  updateProfile(@Request() req, @Body() updateData: Partial<User>) {
+    return this.usersService.update(req.user.userId, updateData);
+  }
+
+  // 🔒 Admin uniquement ou à supprimer
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Role('admin')
+  @Get('email/:email')
+  getUserByEmail(@Param('email') email: string): Promise<User | null> {
+    return this.usersService.findByEmail(email);
+  }
+
   // ❌ À désactiver ou restreindre (création publique via /auth/register normalement)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Role('admin')
@@ -38,7 +81,13 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
-  
+  // ❌ À désactiver ou à sécuriser (accès à un user par ID)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Role('admin')
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.usersService.findOne(id);
+  }
 
   // ❌ À désactiver ou sécuriser si besoin (édition par ID)
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -54,35 +103,5 @@ export class UsersController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);
-  }
-
-  // 🔒 Admin uniquement ou à supprimer
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Role('admin')
-  @Get('email/:email')
-  getUserByEmail(@Param('email') email: string): Promise<User | null> {
-    return this.usersService.findByEmail(email);
-  }
-
-  // ✅ Profil utilisateur connecté
-  @UseGuards(JwtAuthGuard)
-  @Get('profile')
-  getProfile(@Request() req) {
-    return this.usersService.findOne(req.user.userId);
-  }
-
-  // ❌ À désactiver ou à sécuriser (accès à un user par ID)
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Role('admin')
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
-  }
-
-  // ✅ Mise à jour du profil
-  @UseGuards(JwtAuthGuard)
-  @Put('profile')
-  updateProfile(@Request() req, @Body() updateData: Partial<User>) {
-    return this.usersService.update(req.user.userId, updateData);
   }
 }

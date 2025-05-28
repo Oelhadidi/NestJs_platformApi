@@ -22,6 +22,6 @@ export class Project {
   @ManyToOne(() => User, user => user.projects, { onDelete: 'CASCADE' })
   owner: User;
 
-  @OneToMany(() => Investment, investment => investment.project)
+  @OneToMany(() => Investment, investment => investment.project, { onDelete: 'CASCADE' })
   investments: Investment[];
 }

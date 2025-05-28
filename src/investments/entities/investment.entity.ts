@@ -16,6 +16,6 @@ export class Investment {
   @ManyToOne(() => User, user => user.investments)
   investor: User;
 
-  @ManyToOne(() => Project, project => project.investments)
+  @ManyToOne(() => Project, project => project.investments, { onDelete: 'CASCADE' })
   project: Project;
 } 

@@ -18,19 +18,30 @@ export class InvestmentsController {
   @Role('investor')
   @Post()
   create(@Body() dto: CreateInvestmentDto, @Request() req) {
-    return this.investmentsService.create(dto, req.user);
+    const user = {
+      id: req.user.userId,
+      role: req.user.role
+    };
+    return this.investmentsService.create(dto, user);
   }
 
   @Role('investor')
   @Get()
   findAll(@Request() req) {
-    return this.investmentsService.findAll(req.user);
+    const user = {
+      id: req.user.userId,
+      role: req.user.role
+    };
+    return this.investmentsService.findAll(user);
   }
-
 
   @Role('investor')
   @Delete(':id')
   remove(@Param('id') id: string, @Request() req) {
-    return this.investmentsService.remove(id, req.user);
+    const user = {
+      id: req.user.userId,
+      role: req.user.role
+    };
+    return this.investmentsService.remove(id, user);
   }
 } 

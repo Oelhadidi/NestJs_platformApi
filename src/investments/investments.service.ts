@@ -15,7 +15,7 @@ export class InvestmentsService {
     private projectRepo: Repository<Project>,
   ) {}
 
-  async create(dto: CreateInvestmentDto, user: User): Promise<Investment> {
+  async create(dto: CreateInvestmentDto, user: { id: string; role: string }): Promise<Investment> {
     if (user.role !== 'investor') {
       throw new ForbiddenException('Seuls les investisseurs peuvent investir');
     }
@@ -29,23 +29,50 @@ export class InvestmentsService {
       throw new NotFoundException('Projet non trouvé');
     }
 
-    const investment = new Investment();
-    investment.amount = dto.amount;
-    investment.investor = user;
-    investment.project = project;
+    // Créer l'investissement avec le QueryBuilder
+    const result = await this.investmentRepo
+      .createQueryBuilder()
+      .insert()
+      .into(Investment)
+      .values({
+        amount: dto.amount,
+        investor: { id: user.id },
+        project: { id: project.id }
+      })
+      .execute();
 
-    return this.investmentRepo.save(investment);
-  }
+    // Récupérer l'investissement complet avec ses relations
+    const completeInvestment = await this.investmentRepo.findOne({
+      where: { id: result.identifiers[0].id },
+      relations: ['investor', 'project'],
+    });
 
-  async findAll(user: User): Promise<Investment[]> {
-    if (user.role !== 'investor') {
-      throw new ForbiddenException('Accès non autorisé');
+    if (!completeInvestment) {
+      throw new NotFoundException(
+        "Erreur lors de la création de l'investissement",
+      );
     }
 
-    return this.investmentRepo.find({
-      where: { investor: { id: user.id } },
-      relations: ['project', 'investor'],
-    });
+    return completeInvestment;
+  }
+
+  async findAll(user: { id: string; role: string }): Promise<Investment[]> {
+    if (user.role !== 'investor') {
+      throw new ForbiddenException('Seuls les investisseurs peuvent consulter leurs investissements');
+    }
+
+    console.log('User ID:', user.id); // Debug log
+
+    const investments = await this.investmentRepo
+      .createQueryBuilder('investment')
+      .innerJoinAndSelect('investment.investor', 'investor')
+      .innerJoinAndSelect('investment.project', 'project')
+      .where('investor.id = :userId', { userId: user.id })
+      .orderBy('investment.date', 'DESC')
+      .getMany();
+
+    console.log('Found investments:', investments); // Debug log
+    return investments;
   }
 
   async findByProject(projectId: string, user: User): Promise<Investment[]> {
@@ -58,14 +85,13 @@ export class InvestmentsService {
       throw new NotFoundException('Projet non trouvé');
     }
 
-
     return this.investmentRepo.find({
       where: { project: { id: projectId } },
       relations: ['investor', 'project'],
     });
   }
 
-  async remove(id: string, user: User): Promise<void> {
+  async remove(id: string, user: { id: string; role: string }): Promise<{ message: string }> {
     const investment = await this.investmentRepo.findOne({
       where: { id },
       relations: ['investor'],
@@ -80,6 +106,7 @@ export class InvestmentsService {
     }
 
     await this.investmentRepo.remove(investment);
+    return { message: 'Investissement supprimé avec succès' };
   }
 
   async findAllAdmin(): Promise<Investment[]> {

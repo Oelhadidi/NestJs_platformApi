@@ -1,11 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { UsersRepository } from './users.repository';
 import { User } from './entities/user.entity';
+import { Interest } from '../interests/entities/interest.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class UsersService {
   constructor(
-    private usersRepository: UsersRepository
+    private usersRepository: UsersRepository,
+    @InjectRepository(Interest)
+    private interestRepository: Repository<Interest>
   ) {}
 
 
@@ -44,5 +49,44 @@ export class UsersService {
     }
   
     return { message: `Utilisateur a été supprimé avec succès` };
+  }
+
+  async addInterests(userId: string, interestIds: string[]): Promise<User> {
+    const user = await this.findOne(userId);
+    const interests = await this.interestRepository.findByIds(interestIds);
+    
+    if (!interests.length) {
+      throw new NotFoundException('Aucun intérêt trouvé');
+    }
+
+    user.interests = [...(user.interests || []), ...interests];
+    return this.usersRepository.save(user);
+  }
+
+  async removeInterests(userId: string, interestIds: string[]): Promise<User> {
+    const user = await this.findOne(userId);
+    
+    if (!user.interests) {
+      return user;
+    }
+
+    user.interests = user.interests.filter(
+      interest => !interestIds.includes(interest.id.toString())
+    );
+    
+    return this.usersRepository.save(user);
+  }
+
+  async getUserInterests(userId: string): Promise<Interest[]> {
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: ['interests']
+    });
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    return user.interests || [];
   }
 }
